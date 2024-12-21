@@ -1,12 +1,18 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::{Add, Div, Mul}};
 
 fn main() {
-    let num = Rational::build(23, 99).unwrap();
+    let num = Rational::build(3, 2).unwrap();
+    let num2 = Rational::build(5, 8).unwrap();
+    let num3 = num / num2;
+    let num3 = num3.unwrap();
     println!("{}", num.get_decimal());
     println!("{}", num);
+    println!("{}/{}", num3.get_numerator(), num3.get_denominator());
+    println!("{}", num3);
 }
 
 /// A struct that represents a rational number.
+#[derive(Clone, Copy)]
 struct Rational {
     /// The numerator of the rational number.
     numerator: u32,
@@ -16,20 +22,30 @@ struct Rational {
 
 impl Rational {
     /// Builds a rational number from a numerator and denominator.
-    /// Returns an Error when denominator is zero, the rational number otherwise.
+    /// Returns an error when denominator is zero, the rational number otherwise.
     pub fn build(numerator: u32, denominator: u32) -> Result<Rational, String> {
         if denominator == 0 {
             return Err("Denominator must not be zero.".to_string())
         }
-        Ok(Rational {
+        let mut rational = Rational {
             numerator,
             denominator
-        })
+        };
+        rational.reduce();
+        Ok(rational)
     }
 
     /// Returns an approximation to the rational number as f64.
     pub fn get_decimal(&self) -> f64 {
         self.numerator as f64 / self.denominator as f64
+    }
+
+    pub fn get_numerator(&self) -> u32 {
+        self.numerator
+    }
+
+    pub fn get_denominator(&self) -> u32 {
+        self.denominator
     }
 
     /// Returns a decimal iterator over the rational number.
@@ -42,7 +58,30 @@ impl Rational {
     /// Should be executed whenever the rational number might go out of its canonical form.
     /// E.g. when constructing the rational or involved in calculations.
     fn reduce(&mut self) {
+        let mut remainder;
+        let mut a = self.numerator;
+        let mut b = self.denominator;
 
+        loop {
+            remainder = a % b;
+            a = b;
+            b = remainder;
+            if b == 0 {
+                break;
+            }
+        }
+
+        self.numerator /= a;
+        self.denominator /= a;
+    }
+
+    /// Builds the reciprocal of the rational number.
+    /// Returns an error when rational number is zero, the reciprocal otherwise.
+    fn reciprocal(&self) -> Result<Rational, String> {
+        Self::build(
+            self.denominator, 
+            self.numerator
+        )
     }
 }
 
@@ -60,6 +99,43 @@ impl Display for Rational {
     }
 }
 
+impl Add for Rational {
+    type Output = Rational;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut res = Rational::build(
+            self.numerator * rhs.denominator + rhs.numerator * self.denominator,
+            self.denominator * rhs.denominator * 2
+        ).expect("Denominator should not be zero.");
+        res.reduce();
+        res
+    }
+}
+
+impl Mul for Rational {
+    type Output = Rational;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let mut res = Rational::build(
+            self.numerator * rhs.numerator,
+            self.denominator * rhs.denominator
+        ).expect("Denominator should not be zero.");
+        res.reduce();
+        res
+    }
+}
+
+impl Div for Rational {
+    type Output = Result<Rational, String>;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        match rhs.reciprocal() {
+            Ok(reciprocal_rhs) => Ok(self * reciprocal_rhs),
+            Err(e) => Err(e)
+        }
+    }
+}
+
 /// A struct that represents the decimal places of a rational number.
 /// Is consumed by the implemented iterator.
 struct Decimal {
@@ -69,7 +145,7 @@ struct Decimal {
 
 impl Decimal {
     /// Builds a decimal struct from a numerator and denominator.
-    /// Returns an Error when denominator is zero, the decimal otherwise.
+    /// Returns an error when denominator is zero, the decimal otherwise.
     fn build(numerator: u32, denominator: u32) -> Result<Decimal, String> {
         if denominator == 0 {
             return Err("Denominator must not be zero.".to_string())
@@ -118,8 +194,7 @@ impl Decimal {
                     vec![].into_boxed_slice()
                 )
             }
-        }        
-        
+        }
     }
 }
 
@@ -137,4 +212,3 @@ impl Iterator for Decimal {
         Some(res)
     }
 }
-
