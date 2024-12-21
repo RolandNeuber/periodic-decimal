@@ -1,33 +1,22 @@
 use std::fmt::Display;
 
 fn main() {
-    let num = Rational::build(10, 3).unwrap();
+    let num = Rational::build(23, 99).unwrap();
     println!("{}", num.get_decimal());
-
-    let mut decimal = num.get_decimal_iterator();
-    let mut i = 20;
-    let mut res = String::new();
-    res.push_str(decimal.next().unwrap().to_string().as_str());
-    res.push_str(".");
-    for digit in decimal {
-        res.push(digit.to_string().chars().nth(0).unwrap());
-
-        i -= 1;
-        if i == 0 {
-            break;
-        }
-    }
-    println!("{}", res);
-
     println!("{}", num);
 }
 
+/// A struct that represents a rational number.
 struct Rational {
+    /// The numerator of the rational number.
     numerator: u32,
+    /// The denominator of the rational number.
     denominator: u32,
 }
 
 impl Rational {
+    /// Builds a rational number from a numerator and denominator.
+    /// Returns an Error when denominator is zero, the rational number otherwise.
     pub fn build(numerator: u32, denominator: u32) -> Result<Rational, String> {
         if denominator == 0 {
             return Err("Denominator must not be zero.".to_string())
@@ -38,16 +27,27 @@ impl Rational {
         })
     }
 
+    /// Returns an approximation to the rational number as f64.
     pub fn get_decimal(&self) -> f64 {
         self.numerator as f64 / self.denominator as f64
     }
 
-    pub fn get_decimal_iterator(&self) -> Decimal{
+    /// Returns a decimal iterator over the rational number.
+    /// Can be used to get arbitrary precision.
+    fn get_decimal_iterator(&self) -> Decimal {
         Decimal::build(self.numerator, self.denominator).unwrap()
+    }
+
+    /// Reduces the fraction to a canonical form.
+    /// Should be executed whenever the rational number might go out of its canonical form.
+    /// E.g. when constructing the rational or involved in calculations.
+    fn reduce(&mut self) {
+
     }
 }
 
 impl Display for Rational {
+    /// Displays the rational number as (repeating) decimal.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let digits = self.get_decimal_iterator().get_repeating();
         write!(
@@ -60,13 +60,16 @@ impl Display for Rational {
     }
 }
 
-#[derive(Clone, Copy)]
+/// A struct that represents the decimal places of a rational number.
+/// Is consumed by the implemented iterator.
 struct Decimal {
     numerator: u32,
     denominator: u32,
 }
 
 impl Decimal {
+    /// Builds a decimal struct from a numerator and denominator.
+    /// Returns an Error when denominator is zero, the decimal otherwise.
     fn build(numerator: u32, denominator: u32) -> Result<Decimal, String> {
         if denominator == 0 {
             return Err("Denominator must not be zero.".to_string())
@@ -77,6 +80,11 @@ impl Decimal {
         })
     }
 
+    /// Returns the digits of the rational number.
+    /// The first value of the tuple consists of:
+    /// The first value which is the whole part of the number.
+    /// The remaining values are the digits of the non-repeating part of the fraction.
+    /// The second value is a slice of the repeating digits.
     fn get_repeating(&mut self) -> (Box<[u32]>, Box<[u32]>) {
         let mut remainders = vec![];
         let mut digits = vec![];
@@ -118,6 +126,7 @@ impl Decimal {
 impl Iterator for Decimal {
     type Item = u32;
 
+    /// Returns the next digit of the decimal number.
     fn next(&mut self) -> Option<Self::Item> {
         let mut res = 0;
         while self.numerator > self.denominator { 
