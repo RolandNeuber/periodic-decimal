@@ -1,19 +1,22 @@
-use std::{fmt::Display, ops::{Add, Div, Mul}};
+use std::{fmt::Display, ops::{Add, Div, Mul, Neg, Sub}};
 
 fn main() {
-    let num = Rational::build(3, 2).unwrap();
+    let num = -Rational::build(3, 2).unwrap();
     let num2 = Rational::build(5, 8).unwrap();
-    let num3 = num / num2;
-    let num3 = num3.unwrap();
+    let num3 = num - num2;
+    // let num3 = num3.unwrap();
     println!("{}", num.get_decimal());
     println!("{}", num);
-    println!("{}/{}", num3.get_numerator(), num3.get_denominator());
+    println!("{}{}/{}", if num3.sign { "-" } else { "" }, num3.get_numerator(), num3.get_denominator());
     println!("{}", num3);
 }
 
 /// A struct that represents a rational number.
 #[derive(Clone, Copy)]
 struct Rational {
+    /// The sign of the rational number.
+    /// False is positive, true is negative.
+    sign: bool,
     /// The numerator of the rational number.
     numerator: u32,
     /// The denominator of the rational number.
@@ -23,13 +26,14 @@ struct Rational {
 impl Rational {
     /// Builds a rational number from a numerator and denominator.
     /// Returns an error when denominator is zero, the rational number otherwise.
-    pub fn build(numerator: u32, denominator: u32) -> Result<Rational, String> {
+    pub fn build(numerator: i32, denominator: i32) -> Result<Rational, String> {
         if denominator == 0 {
             return Err("Denominator must not be zero.".to_string())
         }
         let mut rational = Rational {
-            numerator,
-            denominator
+            sign: numerator.signum() * denominator.signum() == -1,
+            numerator: numerator.abs() as u32,
+            denominator: denominator.abs() as u32,
         };
         rational.reduce();
         Ok(rational)
@@ -37,7 +41,16 @@ impl Rational {
 
     /// Returns an approximation to the rational number as f64.
     pub fn get_decimal(&self) -> f64 {
-        self.numerator as f64 / self.denominator as f64
+        self.numerator as f64 / self.denominator as f64 * self.signum() as f64
+    }
+
+    /// Returns the sign of the rational number.
+    /// Returns 1 if positive, 0 if zero and -1 if negative.
+    pub fn signum(&self) -> i32 {
+        if self.numerator == 0 {
+            return 0;
+        }
+        if self.sign { -1 } else { 1 }
     }
 
     pub fn get_numerator(&self) -> u32 {
@@ -79,8 +92,8 @@ impl Rational {
     /// Returns an error when rational number is zero, the reciprocal otherwise.
     fn reciprocal(&self) -> Result<Rational, String> {
         Self::build(
-            self.denominator, 
-            self.numerator
+            self.denominator as i32 * self.signum(),
+            self.numerator as i32
         )
     }
 }
@@ -91,7 +104,8 @@ impl Display for Rational {
         let digits = self.get_decimal_iterator().get_repeating();
         write!(
             f,
-            "{}.{}\x1b[53m{}\x1b[0m", 
+            "{}{}.{}\x1b[53m{}\x1b[0m", 
+            if self.sign { "-" } else { "" },
             digits.0[0], 
             digits.0[1..].iter().map(|x| x.to_string()).collect::<Vec<String>>().join(""), 
             digits.1.iter().map(|x| x.to_string()).collect::<Vec<String>>().join("")
@@ -104,11 +118,20 @@ impl Add for Rational {
 
     fn add(self, rhs: Self) -> Self::Output {
         let mut res = Rational::build(
-            self.numerator * rhs.denominator + rhs.numerator * self.denominator,
-            self.denominator * rhs.denominator * 2
+            (self.numerator * rhs.denominator) as i32 * self.signum() 
+            + (rhs.numerator * self.denominator) as i32 * rhs.signum(),
+            (self.denominator * rhs.denominator * 2) as i32
         ).expect("Denominator should not be zero.");
         res.reduce();
         res
+    }
+}
+
+impl Sub for Rational {
+    type Output = Rational;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self + -rhs
     }
 }
 
@@ -117,8 +140,8 @@ impl Mul for Rational {
 
     fn mul(self, rhs: Self) -> Self::Output {
         let mut res = Rational::build(
-            self.numerator * rhs.numerator,
-            self.denominator * rhs.denominator
+            (self.numerator * rhs.numerator) as i32 * self.signum() * rhs.signum(),
+            (self.denominator * rhs.denominator) as i32
         ).expect("Denominator should not be zero.");
         res.reduce();
         res
@@ -133,6 +156,17 @@ impl Div for Rational {
             Ok(reciprocal_rhs) => Ok(self * reciprocal_rhs),
             Err(e) => Err(e)
         }
+    }
+}
+
+impl Neg for Rational {
+    type Output = Rational;
+
+    fn neg(self) -> Self::Output {
+        Rational::build(
+            self.numerator as i32 * self.signum() * -1,
+            self.denominator as i32
+        ).expect("Denominator should not be zero.")
     }
 }
 
