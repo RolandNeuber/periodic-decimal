@@ -2,10 +2,9 @@ use std::{fmt::Display, ops::{Add, Div, Mul, Neg, Sub}};
 use flux_rs::*;
 
 fn main() {
-    let num = Rational::new(1, 7 * 7 * 7 * 7 * 7);
+    let num = Rational::new(1, 7 * 7 * 7);
     let num2 = Rational::new(5, 8);
     let num3 = num - num2;
-    // let num3 = num3.unwrap();
     println!("{}", num.get_decimal());
     println!("{}", num);
     println!("{}{}/{}", if num3.sign { "-" } else { "" }, num3.get_numerator(), num3.get_denominator());
@@ -130,7 +129,7 @@ impl Add for Rational {
     type Output = Rational;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let denominator = (self.get_denominator() * rhs.get_denominator() * 2) as i32;
+        let denominator = (self.get_denominator() * rhs.get_denominator()) as i32;
         assert!(denominator != 0);
         let mut res = Rational::new(
             (self.numerator * rhs.get_denominator()) as i32 * self.signum() 
